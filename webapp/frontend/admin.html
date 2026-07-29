@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Admin Tamper</title>
+</head>
+<body>
+  <h2>Dev Admin - Tamper Record</h2>
+  <form id="tamperForm">
+    <label>Filename:<br><input name="filename" style="width:600px" required></label><br><br>
+    <label>record_keccak:<br><input name="record_keccak" style="width:600px" required></label><br><br>
+    <label>record_sha256:<br><input name="record_sha256" style="width:600px" required></label><br><br>
+    <label>Admin key (X-ADMIN-KEY):<br><input name="admin_key" value="dev-key" style="width:300px"></label><br><br>
+    <button type="submit">Apply Tamper</button>
+  </form>
+  <pre id="out"></pre>
+  <script>
+    const form = document.getElementById('tamperForm');
+    const out = document.getElementById('out');
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(form);
+      const filename = fd.get('filename');
+      const body = new URLSearchParams();
+      body.append('filename', filename);
+      body.append('record_keccak', fd.get('record_keccak'));
+      body.append('record_sha256', fd.get('record_sha256'));
+      const key = fd.get('admin_key');
+      try{
+        const res = await fetch('/admin/tamper', {method:'POST', body: body, headers: {'X-ADMIN-KEY': key}});
+        const j = await res.json();
+        out.textContent = JSON.stringify(j, null, 2);
+      }catch(err){
+        out.textContent = String(err);
+      }
+    })
+  </script>
+</body>
+</html>

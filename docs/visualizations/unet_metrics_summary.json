@@ -1,0 +1,21 @@
+{
+    "model": "U-Net",
+    "encoder": "ResNet50",
+    "image_size": 512,
+    "best_validation_iou": 0.4319887686634465,
+    "best_epoch": 37,
+    "test_results": {
+        "loss": 0.435,
+        "iou": 0.4267,
+        "dice": 0.5155,
+        "accuracy": 0.9923,
+        "precision": 0.7473,
+        "recall": 0.5386
+    },
+    "checkpoint_files": {
+        "best_model": "best_unet_model.pth",
+        "last_model": "last_unet_model.pth",
+        "weights_only": "unet_weights_only.pth",
+        "history": "unet_training_history.json"
+    }
+}

@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AgriChain AI — Ứng dụng TomatoSeg</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Exo+2:ital,wght@0,300;0,400;0,500;0,600;1,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="scan-line"></div>
+ 
+<div class="app-wrapper">
+ 
+<!-- ════════════ HEADER ════════════ -->
+<header>
+ <div class="logo" onclick="switchView('analyzer')">
+  <div class="logo-icon">🌿</div>
+  <div class="logo-text">Agri<em>Chain</em>&nbsp;AI</div>
+ </div>
+ 
+ <nav>
+  <div class="nav-link active" data-view="analyzer" onclick="switchView('analyzer')">
+    <i class="fa-solid fa-microscope"></i>Phân tích
+  </div>
+  <div class="nav-link" data-view="dashboard" onclick="switchView('dashboard')">
+    <i class="fa-solid fa-chart-line"></i>Bảng điều khiển
+  </div>
+  <div class="nav-link" data-view="about" onclick="switchView('about')">
+    <i class="fa-solid fa-cube"></i>Giới thiệu mô hình
+  </div>
+ </nav>
+ 
+ <button class="btn-wallet" id="walletBtn" onclick="connectWallet()" title="Kết nối MetaMask với Hardhat localhost 8545">
+  <div class="wallet-dot" id="walletDot"></div>
+  <span id="walletText">Chưa kết nối MetaMask</span>
+ </button>
+</header>
+ 
+<!-- ════════════ MAIN ════════════ -->
+<main>
+ 
+<!-- ──────────── VIEW 1: ANALYZER ──────────── -->
+<div class="view active" id="view-analyzer">
+ 
+  <div class="section-header">
+    <h1 class="section-title"><em>Phân vùng bệnh</em> lá cà chua</h1>
+    <p class="section-subtitle">Tải ảnh lá để phát hiện và định lượng bệnh bằng các mô hình phân vùng học sâu</p>
+  </div>
+  
+  <div class="analyzer-grid">
+  
+    <!-- LEFT PANEL -->
+    <div>
+      <div class="glass-panel">
+        <div class="settings-title">Ảnh đầu vào</div>
+  
+        <div class="upload-zone" id="uploadZone"
+            onclick="document.getElementById('file-input').click()"
+            ondragover="handleDragOver(event)"
+            ondragleave="handleDragLeave(event)"
+            ondrop="handleDrop(event)">
+          <div class="upload-placeholder" id="uploadPlaceholder">
+            <i class="fa-solid fa-cloud-arrow-up up-icon"></i>
+            <div class="up-title">Kéo &amp; thả ảnh lá tại đây</div>
+            <div class="up-hint">PNG · JPG · WEBP &nbsp;·&nbsp; Tối đa 10 MB</div>
+          </div>
+          <div class="upload-preview" id="uploadPreview">
+            <img id="previewImg" src="" alt="Xem trước ảnh lá"/>
+            <div class="file-name-tag" id="fileName"></div>
+            <button class="remove-btn" onclick="removeImage(event)">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+        <input type="file" id="file-input" accept="image/*" onchange="handleFileUpload(event)">
+  
+        <div class="settings-section">
+          <div class="settings-title">Cấu hình AI</div>
+  
+          <div class="form-group">
+            <div class="form-label">
+              <span>Mô hình phân vùng</span>
+            </div>
+            <select class="custom-select" id="modelSelect">
+              <option value="unet">U-Net — Bộ mã hóa / giải mã</option>
+              <option value="segnet">SegNet — Giải mã chỉ số pooling</option>
+              <option value="unetpp">U-Net++ — Kết nối skip dày đặc</option>
+            </select>
+          </div>
+  
+          <div class="form-group">
+            <div class="form-label">
+              <span>Ngưỡng tin cậy</span>
+              <span class="label-val" id="confLabel">0.50</span>
+            </div>
+            <input type="range" class="range-slider" id="confSlider"
+                  min="0" max="1" step="0.01" value="0.5"
+                  oninput="document.getElementById('confLabel').textContent=parseFloat(this.value).toFixed(2)">
+          </div>
+        </div>
+  
+        <button class="btn-analyze" id="analyzeBtn" onclick="runAnalysis()">
+          <i class="fa-solid fa-magnifying-glass-chart"></i>&nbsp;&nbsp;Phân tích bệnh
+        </button>
+      </div>
+    </div>
+  
+    <!-- RIGHT PANEL -->
+    <div class="glass-panel" style="position:relative;min-height:420px">
+      <!-- Loading overlay -->
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner-ring"></div>
+        <div class="loading-text">Đang xử lý</div>
+        <div class="loading-step" id="loadingStep">Đang khởi tạo mô hình AI...</div>
+      </div>
+  
+      <!-- Empty state -->
+      <div id="emptyState" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;gap:14px;opacity:.35">
+        <i class="fa-solid fa-seedling" style="font-size:52px;color:var(--primary)"></i>
+        <div style="font-size:14px;color:var(--text-secondary)">Tải ảnh lá và nhấn Phân tích</div>
+        <div style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono)">Kết quả sẽ hiển thị tại đây</div>
+      </div>
+  
+      <!-- Results -->
+      <div class="results-panel" id="resultsPanel" style="display:none">
+        <div class="results-header">
+          <span class="results-label"><i class="fa-solid fa-brain"></i>&nbsp;&nbsp;Kết quả phân vùng AI</span>
+          <div class="status-badge success">
+            <div class="badge-dot"></div>
+            Hoàn tất phân tích
+          </div>
+        </div>
+  
+        <!-- 3-image grid -->
+        <div class="image-grid">
+          <div class="image-card">
+            <img id="resultOriginal" src="" alt="Ảnh lá gốc"/>
+            <div class="img-label">Ảnh gốc</div>
+          </div>
+          <div class="image-card mask-card">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'%3E%3Crect fill='%23000' width='220' height='220'/%3E%3Cellipse cx='110' cy='118' rx='72' ry='84' fill='%23fff' opacity='.92'/%3E%3Ccircle cx='88' cy='96' r='17' fill='%23000'/%3E%3Ccircle cx='126' cy='122' r='22' fill='%23000'/%3E%3Ccircle cx='98' cy='135' r='13' fill='%23000'/%3E%3Ccircle cx='120' cy='95' r='9' fill='%23000'/%3E%3C/svg%3E" alt="Mặt nạ AI"/>
+            <div class="img-label">Mặt nạ AI (Đen/Trắng)</div>
+          </div>
+          <div class="image-card overlay-card">
+            <img id="resultOverlay" src="" alt="Ảnh chồng lớp"/>
+            <div class="img-label">Ảnh chồng lớp</div>
+          </div>
+        </div>
+  
+        <!-- Metrics -->
+        <div class="metrics-card">
+          <div class="metrics-header">
+            <div>
+              <div class="metrics-title">Diện tích nhiễm bệnh</div>
+              <div class="metrics-value" id="infectionValue">—</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">Mức độ</div>
+              <div class="severity-tag" id="severityTag">—</div>
+            </div>
+          </div>
+          <div class="metrics-bar-track">
+            <div class="metrics-bar-fill" id="infectionBar"></div>
+          </div>
+          <div class="metrics-detail">
+            <div class="metric-item">
+              <div class="metric-item-val" id="metricModel">—</div>
+              <div class="metric-item-lbl">Mô hình</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-item-val" id="metricIoU">—</div>
+              <div class="metric-item-lbl">Điểm IoU</div>
+            </div>
+            <div class="metric-item">
+              <div class="metric-item-val" id="metricTime">—</div>
+              <div class="metric-item-lbl">Thời gian suy luận</div>
+            </div>
+          </div>
+        </div>
+  
+        <details class="record-meta" id="recordMeta">
+          <summary class="record-meta-summary">
+            <span>
+              <span class="record-meta-title">Metadata bản ghi backend</span>
+              <span class="record-meta-note">Hiển thị trực tiếp từ /predict để peg và kiểm chứng cục bộ.</span>
+            </span>
+          </summary>
+          <div class="record-meta-grid">
+            <div class="record-meta-item">
+              <span class="record-meta-key">record_sha256</span>
+              <span class="record-meta-val" id="recordSha256">—</span>
+            </div>
+            <div class="record-meta-item">
+              <span class="record-meta-key">record_keccak</span>
+              <span class="record-meta-val" id="recordKeccak">—</span>
+            </div>
+            <div class="record-meta-item">
+              <span class="record-meta-key">record_timestamp</span>
+              <span class="record-meta-val" id="recordTimestamp">—</span>
+            </div>
+          </div>
+        </details>
+  
+        <details class="model-compare-panel" id="modelComparison" style="display:none">
+          <summary class="model-compare-summary">
+            <span>
+              <span class="model-compare-title">So sánh mô hình</span>
+              <span class="model-compare-note">Nhấp để xem 3 kết quả và so sánh.</span>
+            </span>
+            <span class="model-compare-best" id="modelComparisonBest">—</span>
+          </summary>
+          <div class="model-compare-list" id="modelComparisonBody"></div>
+        </details>
+  
+        <!-- Actions -->
+        <div class="action-row">
+          <button class="btn-dl" onclick="mockDownload(this)">
+            <i class="fa-solid fa-floppy-disk"></i>Tải kết quả
+          </button>
+          <button class="btn-chain" id="blockchainBtn" onclick="pegBlockchain()">
+            <i class="fa-solid fa-link"></i>Ghi lên Blockchain
+          </button>
+        </div>
+  
+        <div class="mining-anim" id="miningAnim">
+          <i class="fa-solid fa-cubes-stacked" style="font-size:13px"></i>
+          <span>Đang đào block</span>
+          <div class="mining-dots"><span></span><span></span><span></span></div>
+        </div>
+  
+        <div class="tx-receipt" id="txReceipt">
+          <div class="tx-receipt-header">
+            <i class="fa-solid fa-terminal"></i>
+            <span>Biên lai giao dịch</span>
+          </div>
+          <div class="tx-line"><span class="tx-key">Trạng thái</span><span class="tx-val ok"><i class="fa-solid fa-circle-check"></i>&nbsp;THÀNH CÔNG</span></div>
+          <div class="tx-line"><span class="tx-key">Mạng</span><span class="tx-val" id="txNetwork">Hardhat Localhost 8545</span></div>
+          <div class="tx-line"><span class="tx-key">Mã giao dịch</span><span class="tx-val hash" id="txHash">—</span></div>
+          <div class="tx-line"><span class="tx-key">Block #</span><span class="tx-val" id="txBlock">—</span></div>
+          <div class="tx-line"><span class="tx-key">Gas đã dùng</span><span class="tx-val">42,381 Gwei</span></div>
+          <div class="tx-line"><span class="tx-key">Thời gian</span><span class="tx-val" id="txTime">—</span></div>
+          <div class="tx-line"><span class="tx-key">Hợp đồng</span><span class="tx-val hash" id="txContract">—</span></div>
+          <div class="tx-line"><span class="tx-key">Mã băm</span><span class="tx-val hash" id="txPegHash">—</span></div>
+        </div>
+  
+      </div> <!-- Kết thúc results-panel -->
+    </div> <!-- Kết thúc glass-panel bên phải -->
+  </div> <!-- Kết thúc analyzer-grid -->
+</div> <!-- Kết thúc view-analyzer (Lỗi cũ bị thiếu thẻ này) -->
+ 
+<!-- ──────────── VIEW 2: DASHBOARD ──────────── -->
+<div class="view" id="view-dashboard">
+  <div class="section-header">
+    <h1 class="section-title"><em>Quét</em> Bảng điều khiển</h1>
+    <p class="section-subtitle">Lịch sử phân tích, thống kê on-chain và theo dõi xu hướng bệnh</p>
+  </div>
+  
+  <!-- Stats -->
+  <div class="dashboard-stats">
+    <div class="stat-card">
+      <div class="stat-lbl">Tổng lượt quét</div>
+  
+      <!-- Khối Kiểm định (Auditing) -->
+      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-glass);">
+        <div class="stat-lbl" style="color:var(--cyan); margin-bottom:10px;">Kiểm toán Blockchain</div>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="verifyFileName" placeholder="Nhập tên file (VD: leaf1.jpg)" 
+                style="flex:1; background:rgba(0,0,0,0.3); border:1px solid var(--border-glass); color:white; padding:6px 10px; border-radius:4px; font-size:11px;">
+          <button onclick="verifyData()" style="background:var(--cyan); border:none; color:black; font-weight:bold; padding:0 12px; border-radius:4px; cursor:pointer; font-size:11px;">
+            <i class="fa-solid fa-shield-halved"></i> Xác minh
+          </button>
+        </div>
+        
+        <!-- Status Boxes -->
+        <div id="verifySuccess" style="display:none; margin-top:10px; background:rgba(0,232,122,0.15); border:1px solid var(--primary); color:var(--primary); padding:8px; border-radius:4px; font-size:10px; font-weight:bold; text-align:center;">
+          ✅ Dữ liệu Minh Bạch 100% (Khớp Blockchain)
+        </div>
+        <div id="verifyError" style="display:none; margin-top:10px; background:rgba(255,76,43,0.15); border:1px solid var(--red); color:var(--red); padding:8px; border-radius:4px; font-size:10px; font-weight:bold; text-align:center;">
+          ❌ Phát hiện giả mạo! Dữ liệu DB sai lệch.
+        </div>
+      </div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-lbl">Tổng bản ghi (Cập nhật tuần này)</div>
+      <div class="stat-val">47</div>
+      <div class="stat-sub"><i class="fa-solid fa-arrow-trend-up" style="color:var(--primary)"></i>&nbsp;+12 tuần này</div>
+      <i class="fa-solid fa-microscope stat-icon-bg" style="color:var(--primary)"></i>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-lbl">Tỉ lệ nhiễm trung bình</div>
+      <div class="stat-val" style="color:var(--orange)">18.3<span style="font-size:18px">%</span></div>
+      <div class="stat-sub"><i class="fa-solid fa-arrow-trend-down" style="color:var(--orange)"></i>&nbsp;-2.1% so với tuần trước</div>
+      <i class="fa-solid fa-virus stat-icon-bg" style="color:var(--orange)"></i>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-lbl">Bản ghi on-chain</div>
+      <div class="stat-val" style="color:var(--cyan)">31</div>
+      <div class="stat-sub"><i class="fa-solid fa-link" style="color:var(--cyan)"></i>&nbsp;Hardhat Localhost 8545</div>
+      <i class="fa-solid fa-cube stat-icon-bg" style="color:var(--cyan)"></i>
+    </div>
+  </div>
+  
+  <!-- Chart -->
+  <div class="chart-container">
+    <div class="chart-title"><i class="fa-solid fa-chart-column"></i>&nbsp;&nbsp;Xu hướng nhiễm bệnh — 7 ngày gần đây</div>
+    <div class="chart-body" id="chartBody"></div>
+  </div>
+  
+  <!-- History Table -->
+  <div class="hist-wrapper">
+    <div class="hist-thead">
+      <span>Ảnh</span>
+      <span>Tên file</span>
+      <span>Mô hình</span>
+      <span>Nhiễm bệnh</span>
+      <span>Mã giao dịch</span>
+      <span>Thời điểm quét</span>
+    </div>
+    <div id="histBody"></div>
+  </div>
+</div>
+ 
+<!-- ──────────── VIEW 3: ABOUT MODEL ──────────── -->
+<div class="view" id="view-about">
+  <div class="section-header">
+    <h1 class="section-title">Giới thiệu <em>mô hình</em> &amp; dự án</h1>
+    <p class="section-subtitle">So sánh kiến trúc, phương pháp kỹ thuật và tổng quan tích hợp Web3</p>
+  </div>
+  
+  <!-- Model Cards -->
+  <div class="about-grid">
+    <div class="model-card mc-unet">
+      <div class="mc-name">U-Net</div>
+      <div class="mc-sub">Mốc chuẩn phân vùng ngữ nghĩa</div>
+      <p class="mc-desc">Ronneberger và cộng sự (2015) đề xuất U-Net với kiến trúc mã hóa–giải mã và các kết nối skip đối xứng, giúp định vị chính xác với dữ liệu huấn luyện hạn chế — rất phù hợp cho phân vùng ảnh y sinh.</p>
+      <ul class="spec-list">
+        <li>Kiến trúc <span>Mã hóa–Giải mã</span></li>
+        <li>Kết nối skip <span>Chuẩn</span></li>
+        <li>Xương sống <span>ResNet-34</span></li>
+        <li>Tham số <span>~31 M</span></li>
+        <li>IoU (Cà chua) <span>0.891</span></li>
+        <li>Suy luận <span>~1.1 s</span></li>
+        <li>Phù hợp <span>Dùng chung</span></li>
+      </ul>
+    </div>
+    <div class="model-card mc-segnet">
+      <div class="mc-name">SegNet</div>
+      <div class="mc-sub">Giải mã chỉ số pooling</div>
+      <p class="mc-desc">Badrinarayanan và cộng sự (2015) thiết kế SegNet dựa trên việc ghi nhớ chỉ số max-pooling để upsampling hiệu quả. Cách này loại bỏ nhu cầu lưu feature map, giảm bộ nhớ — phù hợp triển khai nhúng và thiết bị biên.</p>
+      <ul class="spec-list">
+        <li>Kiến trúc <span>Dựa trên VGG-16</span></li>
+        <li>Kết nối skip <span>Dựa trên chỉ số</span></li>
+        <li>Xương sống <span>VGG-16</span></li>
+        <li>Tham số <span>~29 M</span></li>
+        <li>IoU (Cà chua) <span>0.872</span></li>
+        <li>Suy luận <span>~0.9 s</span></li>
+        <li>Phù hợp <span>Thiết bị biên</span></li>
+      </ul>
+    </div>
+    <div class="model-card mc-unetpp">
+      <div class="mc-name">U-Net++</div>
+      <div class="mc-sub">Kiến trúc lồng dày đặc</div>
+      <p class="mc-desc">Zhou và cộng sự (2018) thiết kế lại đường skip bằng các khối tích chập dày đặc, thu hẹp khoảng cách ngữ nghĩa giữa encoder và decoder — cho hiệu năng tiên tiến trong phân vùng bệnh cây trồng.</p>
+      <ul class="spec-list">
+        <li>Kiến trúc <span>U-Net lồng</span></li>
+        <li>Kết nối skip <span>Lồng dày</span></li>
+        <li>Xương sống <span>EfficientNet-B4</span></li>
+        <li>Tham số <span>~47 M</span></li>
+        <li>IoU (Cà chua) <span>0.927</span></li>
+        <li>Suy luận <span>~1.8 s</span></li>
+        <li>Phù hợp <span>Độ chính xác cao</span></li>
+      </ul>
+    </div>
+  </div>
+  
+  <!-- Pipeline -->
+  <div class="about-block">
+    <h3><i class="fa-solid fa-route"></i>Quy trình xử lý</h3>
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="pipe-icon"><i class="fa-solid fa-image"></i></div>
+        <div class="pipe-title">Ảnh đầu vào</div>
+        <div class="pipe-sub">224×224 RGB</div>
+      </div>
+      <div class="pipe-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+      <div class="pipe-step">
+        <div class="pipe-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+        <div class="pipe-title">Tiền xử lý</div>
+        <div class="pipe-sub">Chuẩn hóa, tăng cường</div>
+      </div>
+      <div class="pipe-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+      <div class="pipe-step">
+        <div class="pipe-icon"><i class="fa-solid fa-brain"></i></div>
+        <div class="pipe-title">Suy luận AI</div>
+        <div class="pipe-sub">Xương sống CNN</div>
+      </div>
+      <div class="pipe-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+      <div class="pipe-step">
+        <div class="pipe-icon"><i class="fa-solid fa-circle-half-stroke"></i></div>
+        <div class="pipe-title">Mặt nạ nhị phân</div>
+        <div class="pipe-sub">Ngưỡng σ(x)&gt;0.5</div>
+      </div>
+      <div class="pipe-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+      <div class="pipe-step">
+        <div class="pipe-icon"><i class="fa-solid fa-calculator"></i></div>
+        <div class="pipe-title">Chỉ số</div>
+        <div class="pipe-sub">IoU, Dice, % diện tích</div>
+      </div>
+      <div class="pipe-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+      <div class="pipe-step">
+        <div class="pipe-icon"><i class="fa-brands fa-ethereum"></i></div>
+        <div class="pipe-title">Blockchain</div>
+        <div class="pipe-sub">Hardhat Localhost + Hợp đồng thông minh</div>
+      </div>
+    </div>
+    <div class="tag-cloud">
+      <span class="tech-tag tg">PyTorch</span>
+      <span class="tech-tag tg">OpenCV</span>
+      <span class="tech-tag tg">PlantVillage Dataset</span>
+      <span class="tech-tag tg">Albumentations</span>
+      <span class="tech-tag tb">Solidity ^0.8</span>
+      <span class="tech-tag tb">Web3.js</span>
+      <span class="tech-tag tb">Hardhat Localhost 8545</span>
+      <span class="tech-tag tb">MetaMask</span>
+      <span class="tech-tag to">Python Flask</span>
+      <span class="tech-tag to">REST API</span>
+      <span class="tech-tag to">Docker</span>
+    </div>
+  </div>
+  
+  <!-- Web3 section -->
+  <div class="about-block">
+    <h3><i class="fa-brands fa-ethereum"></i>Tích hợp Web3 &amp; Blockchain</h3>
+    <p>Mỗi kết quả phân tích được niêm phong bằng mật mã và ghi lên blockchain Hardhat cục bộ qua một smart contract tùy biến. Mặt nạ và metadata do AI tạo (tỉ lệ nhiễm, mô hình sử dụng, thời gian, ngưỡng tin cậy) được lưu off-chain trong SQLite, còn mã băm bản ghi được ghi on-chain — đảm bảo luồng dữ liệu minh bạch, xác định và dễ kiểm thử trên localhost 8545.</p>
+    <p>Smart contract phát sự kiện <code class="inline">LeafAnalysisRecorded(address,bytes32,uint256,uint256)</code> để các hệ thống hạ nguồn — nền tảng quản lý nông trại, giao thức bảo hiểm nông nghiệp và viện nghiên cứu — có thể lắng nghe và xử lý theo thời gian thực qua WebSocket.</p>
+    <p>Điều này tạo ra chuỗi nguồn gốc dữ liệu sức khỏe cây trồng có thể kiểm chứng, hỗ trợ thẩm định bảo hiểm minh bạch, quyết định canh tác chính xác và truy xuất nguồn gốc từ trang trại đến người tiêu dùng.</p>
+  </div>
+</div>
+ 
+</main>
+ 
+<footer>
+ AgriChain AI &nbsp;·&nbsp; TomatoSeg DApp &nbsp;·&nbsp;
+ Nền tảng: <em>Deep Learning</em> + <em>Ethereum</em> &nbsp;·&nbsp;
+ Đồ án tốt nghiệp &nbsp;·&nbsp; 2026
+</footer>
+</div>
+ 
+<!-- ════════ SCRIPTS ════════ -->
+<script src="contract_abi.js"></script>
+<script src="script.js" defer></script>
+</body>
+</html>

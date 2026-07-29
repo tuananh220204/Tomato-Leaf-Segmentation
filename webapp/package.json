@@ -1,0 +1,17 @@
+{
+  "name": "tomato-leaf-segmentation-webapp",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local Hardhat scaffold for the Tomato Leaf Segmentation webapp",
+  "scripts": {
+    "hardhat": "hardhat",
+    "compile": "hardhat compile",
+    "node": "hardhat node",
+    "deploy:localhost": "hardhat run --network localhost hardhat/scripts/deploy.js"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "ethers": "^5.7.2",
+    "hardhat": "^2.22.0"
+  }
+}
