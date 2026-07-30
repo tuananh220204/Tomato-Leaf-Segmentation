@@ -40,6 +40,12 @@ logs/
 # Data reports / generated outputs
 data_preparation_report.json
 
+# Large model weights and local databases
+*.pth
+*.db
+models/saved/
+webapp/backend/database.db
+
 # Node / webapp artifacts
 webapp/node_modules/
 webapp/cache/
