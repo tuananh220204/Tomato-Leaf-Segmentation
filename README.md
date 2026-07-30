@@ -49,7 +49,7 @@ Sơ đồ dưới đây mô tả chi tiết luồng tương tác giữa người
 
 ![Poster AgriChain AI](images/poster.png)
 
-📄 **[Tải xuống Poster định dạng PDF chất lượng cao tại đây](images/Poster.pdf)**
+📄 **[Tải xuống Poster định dạng PDF chất lượng cao tại đây](images/poster.pdf)**
 
 ---
 
