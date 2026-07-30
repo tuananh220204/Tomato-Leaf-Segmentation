@@ -1,0 +1,59 @@
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+.python-version
+
+# Jupyter / notebook artifacts
+.ipynb_checkpoints/
+
+# Editor settings
+.vscode/
+.idea/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Project data and model artifacts
+checkpoints/
+logs/
+# Data reports / generated outputs
+data_preparation_report.json
+
+# Large model weights and local databases
+*.pth
+*.db
+models/saved/
+webapp/backend/database.db
+
+# Node / webapp artifacts
+webapp/node_modules/
+webapp/cache/
+webapp/artifacts/
+webapp/package-lock.json
+
+# Build outputs
+build/
+dist/
+out/
+
